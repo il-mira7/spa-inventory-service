@@ -9,7 +9,9 @@ import (
 	"go.uber.org/fx/fxevent"
 )
 
-// NewLogger создает структурированный JSON-логгер slog на основе конфигурации.
+// NewLogger создает логгер slog на основе конфигурации.
+// В режиме разработки (APP_ENV != "production") используется человекочитаемый TextHandler.
+// В режиме production используется структурированный JSONHandler.
 func NewLogger(cfg *config.Config) *slog.Logger {
 	var level slog.Level
 	switch strings.ToLower(cfg.LogLevel) {
@@ -27,7 +29,13 @@ func NewLogger(cfg *config.Config) *slog.Logger {
 		Level: level,
 	}
 
-	handler := slog.NewJSONHandler(os.Stdout, opts)
+	var handler slog.Handler
+	if strings.ToLower(cfg.AppEnv) == "production" {
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	} else {
+		handler = slog.NewTextHandler(os.Stderr, opts)
+	}
+
 	logger := slog.New(handler)
 
 	// Устанавливаем в качестве глобального логгера по умолчанию
@@ -41,7 +49,7 @@ type FxSlogLogger struct {
 	logger *slog.Logger
 }
 
-// NewFxLogger создает адаптер fxevent.Logger.
+// NewFxLogger создает адаптер fxevent.Logger с фильтрацией избыточного шума DI-контейнера.
 func NewFxLogger(logger *slog.Logger) fxevent.Logger {
 	return &FxSlogLogger{logger: logger}
 }
@@ -89,27 +97,27 @@ func (l *FxSlogLogger) LogEvent(event fxevent.Event) {
 		}
 	case *fxevent.Supplied:
 		if e.Err != nil {
-			l.logger.Error("fx: error supplying type",
+			l.logger.Debug("fx: error supplying type",
 				slog.String("type", e.TypeName),
 				slog.String("error", e.Err.Error()),
 			)
 		}
 	case *fxevent.Provided:
 		if e.Err != nil {
-			l.logger.Error("fx: error providing type",
+			l.logger.Debug("fx: error providing type",
 				slog.String("error", e.Err.Error()),
 			)
 		}
 	case *fxevent.Invoked:
 		if e.Err != nil {
-			l.logger.Error("fx: invoke failed",
+			l.logger.Debug("fx: invoke failed",
 				slog.String("function", e.FunctionName),
 				slog.String("error", e.Err.Error()),
 			)
 		}
 	case *fxevent.Started:
 		if e.Err != nil {
-			l.logger.Error("fx: application failed to start",
+			l.logger.Debug("fx: application failed to start",
 				slog.String("error", e.Err.Error()),
 			)
 		} else {
@@ -124,12 +132,12 @@ func (l *FxSlogLogger) LogEvent(event fxevent.Event) {
 			l.logger.Info("fx: application stopped gracefully")
 		}
 	case *fxevent.RollingBack:
-		l.logger.Warn("fx: rolling back startup",
+		l.logger.Debug("fx: rolling back startup",
 			slog.String("error", e.StartErr.Error()),
 		)
 	case *fxevent.RolledBack:
 		if e.Err != nil {
-			l.logger.Error("fx: rollback failed",
+			l.logger.Debug("fx: rollback failed",
 				slog.String("error", e.Err.Error()),
 			)
 		}

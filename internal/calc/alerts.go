@@ -65,9 +65,9 @@ func checkStockoutRisk(in StockAlertInput) *domain.Alert {
 		Message: fmt.Sprintf("Риск дефицита: текущего запаса (%s дн.) меньше срока поставки (%d дн.)",
 			in.StockDays.String(), in.Product.LeadTimeDays),
 		Metrics: map[string]interface{}{
-			"stock_days":             in.StockDays.InexactFloat64(),
-			"lead_time_days":         in.Product.LeadTimeDays,
-			"current_stock":          in.CurrentStock.InexactFloat64(),
+			"stock_days":            in.StockDays.InexactFloat64(),
+			"lead_time_days":        in.Product.LeadTimeDays,
+			"current_stock":         in.CurrentStock.InexactFloat64(),
 			"avg_daily_consumption": in.AvgDailyConsumption.InexactFloat64(),
 		},
 	}
@@ -137,9 +137,9 @@ func checkDeadStock(in StockAlertInput) *domain.Alert {
 		Message: fmt.Sprintf("Отсутствие движения: позиция без расхода более 90 дней (остаток %s %s)",
 			in.CurrentStock.String(), in.Product.Unit),
 		Metrics: map[string]interface{}{
-			"current_stock":          in.CurrentStock.InexactFloat64(),
+			"current_stock":         in.CurrentStock.InexactFloat64(),
 			"days_without_movement": in.DaysWithoutMovement,
-			"unit":                   in.Product.Unit,
+			"unit":                  in.Product.Unit,
 		},
 	}
 }

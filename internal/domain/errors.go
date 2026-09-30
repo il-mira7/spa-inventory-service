@@ -15,6 +15,7 @@ var (
 	ErrInvalidQuantity   = errors.New("quantity must be strictly greater than zero")
 	ErrBatchExpired      = errors.New("batch is expired and cannot be consumed")
 	ErrInvalidOperation  = errors.New("invalid operation type")
+	ErrInvalidDocumentNo = errors.New("document_no is required and cannot be empty")
 )
 
 // InsufficientStockError сигнализирует о нехватке остатка для списания (HTTP 422).

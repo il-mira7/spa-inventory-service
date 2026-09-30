@@ -10,10 +10,12 @@ import (
 	"github.com/il-mira7/spa-inventory-service/migrations"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/fx"
 )
 
 // NewConnectionPool инициализирует пул подключений к PostgreSQL и запускает миграции базы данных.
-func NewConnectionPool(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*pgxpool.Pool, error) {
+func NewConnectionPool(lc fx.Lifecycle, cfg *config.Config, logger *slog.Logger) (*pgxpool.Pool, error) {
+	ctx := context.Background()
 	poolCfg, err := buildPoolConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -27,6 +29,14 @@ func NewConnectionPool(ctx context.Context, cfg *config.Config, logger *slog.Log
 	if err := verifyAndMigrate(ctx, pool, cfg, logger); err != nil {
 		return nil, err
 	}
+
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			logger.Info("closing PostgreSQL connection pool")
+			pool.Close()
+			return nil
+		},
+	})
 
 	return pool, nil
 }

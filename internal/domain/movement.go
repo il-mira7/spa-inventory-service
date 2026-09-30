@@ -55,3 +55,16 @@ func (m Movement) SignedQuantity() decimal.Decimal {
 		return decimal.Zero
 	}
 }
+
+// MovementResult представляет результат выполнения складской операции для ответа POST /api/movements
+type MovementResult struct {
+	ID            int64           `json:"id"`
+	MovementIDs   []int64         `json:"movement_ids,omitempty"`
+	DocumentNo    string          `json:"document_no"`
+	SKU           string          `json:"sku"`
+	LocationID    string          `json:"location"`
+	OperationType OperationType   `json:"type"`
+	Quantity      decimal.Decimal `json:"quantity"`
+	CurrentStock  decimal.Decimal `json:"current_stock"`
+	CreatedAt     time.Time       `json:"created_at"`
+}
