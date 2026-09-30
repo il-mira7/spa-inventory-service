@@ -1,0 +1,676 @@
+openapi: 3.0.3
+info:
+  title: Mountain & Sea Spa - Inventory & Procurement API
+  description: REST API складского учета и ассистента планирования закупок для сети спа-салонов премиум-класса.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Локальный сервер разработки
+
+paths:
+  /health:
+    get:
+      summary: Проверка работоспособности сервиса и подключения к БД
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Сервис готов к работе
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Сервис деградирован (проблемы с БД)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/movements:
+    post:
+      summary: Создание складской проводки
+      description: |
+        Поддерживает типы операций:
+        - receipt: приемка партии
+        - consume: списание по FEFO (автоподбор непросроченных партий)
+        - writeoff: списание конкретной партии (включая просрочку)
+        - return: возврат товара
+        - correction: инвентаризационная корректировка
+      tags:
+        - Movements
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMovementRequest'
+      responses:
+        '201':
+          description: Проводка успешно выполнена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovementResponse'
+        '409':
+          description: Документ с таким номером уже обработан (идемпотентность)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Ошибка бизнес-валидации или нехватка остатка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Журнал складских проводок
+      tags:
+        - Movements
+      parameters:
+        - name: sku
+          in: query
+          schema:
+            type: string
+          description: Фильтр по артикулу
+        - name: location
+          in: query
+          schema:
+            type: string
+          description: Фильтр по объекту (loc-1, loc-2, loc-3)
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [receipt, consume, writeoff, return, correction]
+          description: Фильтр по типу операции
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Начальная дата (YYYY-MM-DD)
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Конечная дата (YYYY-MM-DD)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+          description: Количество записей
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Смещение пагинации
+      responses:
+        '200':
+          description: Список проводок с метаданными пагинации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovementsListResponse'
+
+  /api/stock:
+    get:
+      summary: Сводные остатки товаров
+      tags:
+        - Stock
+      parameters:
+        - name: location
+          in: query
+          schema:
+            type: string
+          description: Опциональный фильтр по локации
+      responses:
+        '200':
+          description: Сводка по остаткам
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockItemResponse'
+
+  /api/stock/{sku}:
+    get:
+      summary: Детализация остатков товара по объектам и партиям
+      tags:
+        - Stock
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Артикул товара (например, OIL-001)
+      responses:
+        '200':
+          description: Детализированный остаток
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockDetailResponse'
+        '404':
+          description: Товар не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/forecast:
+    post:
+      summary: Расчет потребности и плана закупок
+      tags:
+        - Forecast
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForecastRequest'
+      responses:
+        '200':
+          description: Результат расчета прогноза с обоснованием
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForecastResponse'
+        '404':
+          description: Товар или локация не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Некорректные параметры расчета
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/alerts:
+    get:
+      summary: Реестр операционных предупреждений
+      tags:
+        - Alerts
+      parameters:
+        - name: location
+          in: query
+          schema:
+            type: string
+          description: Опциональный фильтр по локации
+      responses:
+        '200':
+          description: Список активных алертов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AlertResponse'
+
+  /api/locations:
+    get:
+      summary: Список объектов сети
+      tags:
+        - Reference
+      responses:
+        '200':
+          description: Список объектов сети
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Location'
+
+  /api/suppliers:
+    get:
+      summary: Список поставщиков
+      tags:
+        - Reference
+      responses:
+        '200':
+          description: Список поставщиков
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Supplier'
+
+  /api/products:
+    get:
+      summary: Каталог активных товаров
+      tags:
+        - Reference
+      responses:
+        '200':
+          description: Каталог товаров
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        timestamp:
+          type: string
+          example: "2026-09-30T18:00:00Z"
+        database:
+          type: string
+          example: connected
+        version:
+          type: string
+          example: "1.0.0"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "not enough stock: requested 10, available 4"
+        code:
+          type: integer
+          example: 422
+        sku:
+          type: string
+          example: OIL-001
+        available:
+          type: number
+          example: 4.0
+        requested:
+          type: number
+          example: 10.0
+
+    CreateMovementRequest:
+      type: object
+      required:
+        - document_no
+        - operation_date
+        - sku
+        - location_id
+        - operation_type
+        - quantity
+      properties:
+        document_no:
+          type: string
+          example: DOC-2026-001
+        operation_date:
+          type: string
+          example: "2026-09-30T10:00:00Z"
+        sku:
+          type: string
+          example: OIL-001
+        location_id:
+          type: string
+          example: loc-1
+        operation_type:
+          type: string
+          enum: [receipt, consume, writeoff, return, correction]
+          example: consume
+        quantity:
+          type: number
+          example: 2.5
+        batch_id:
+          type: string
+          example: B-2026-001
+        expiry_date:
+          type: string
+          format: date
+          example: "2026-12-31"
+        purchase_price:
+          type: number
+          example: 1500.00
+        invoice_no:
+          type: string
+          example: INV-9988
+        note:
+          type: string
+          example: Процедура ароматерапии
+
+    MovementResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        movement_ids:
+          type: array
+          items:
+            type: integer
+          example: [1, 2]
+        document_no:
+          type: string
+          example: DOC-2026-001
+        sku:
+          type: string
+          example: OIL-001
+        location:
+          type: string
+          example: loc-1
+        operation_type:
+          type: string
+          example: consume
+        quantity:
+          type: number
+          example: 2.5
+        current_stock:
+          type: number
+          example: 7.5
+        created_at:
+          type: string
+          example: "2026-09-30T10:00:01Z"
+
+    MovementListItemResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        document_no:
+          type: string
+        operation_date:
+          type: string
+        sku:
+          type: string
+        location:
+          type: string
+        type:
+          type: string
+        quantity:
+          type: number
+        batch:
+          type: string
+        note:
+          type: string
+        created_at:
+          type: string
+
+    MovementsListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MovementListItemResponse'
+        total:
+          type: integer
+          example: 15
+        limit:
+          type: integer
+          example: 50
+        offset:
+          type: integer
+          example: 0
+
+    StockItemResponse:
+      type: object
+      properties:
+        sku:
+          type: string
+          example: OIL-001
+        name:
+          type: string
+          example: Масло лавандовое премиум 500мл
+        location:
+          type: string
+          example: loc-1
+        unit:
+          type: string
+          example: шт
+        current_stock:
+          type: number
+          example: 12.0
+        avg_daily_consumption:
+          type: number
+          example: 0.5
+        stock_days:
+          type: number
+          example: 24.0
+        nearest_expiry_date:
+          type: string
+          format: date
+          example: "2026-11-15"
+
+    BatchStockResponse:
+      type: object
+      properties:
+        batch:
+          type: string
+          example: B-2026-001
+        quantity:
+          type: number
+          example: 6.0
+        expiry_date:
+          type: string
+          format: date
+          example: "2026-11-15"
+        purchase_price:
+          type: number
+          example: 1450.00
+
+    LocationStockBreakdownResponse:
+      type: object
+      properties:
+        location_id:
+          type: string
+          example: loc-1
+        location_name:
+          type: string
+          example: Spa Resort Grand
+        total_stock:
+          type: number
+          example: 12.0
+        batches:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchStockResponse'
+
+    StockDetailResponse:
+      type: object
+      properties:
+        sku:
+          type: string
+          example: OIL-001
+        name:
+          type: string
+          example: Масло лавандовое премиум 500мл
+        unit:
+          type: string
+          example: шт
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationStockBreakdownResponse'
+
+    ForecastRequest:
+      type: object
+      required:
+        - sku
+        - location
+        - period_from
+        - period_to
+      properties:
+        sku:
+          type: string
+          example: OIL-001
+        location:
+          type: string
+          example: loc-1
+        period_from:
+          type: string
+          format: date
+          example: "2026-10-01"
+        period_to:
+          type: string
+          format: date
+          example: "2026-10-31"
+        safety_stock_days:
+          type: integer
+          default: 14
+          example: 14
+        unit_price:
+          type: number
+          example: 1500.00
+        as_of_date:
+          type: string
+          format: date
+          example: "2026-09-30"
+
+    ForecastResponse:
+      type: object
+      properties:
+        sku:
+          type: string
+          example: OIL-001
+        name:
+          type: string
+          example: Масло лавандовое премиум 500мл
+        unit:
+          type: string
+          example: шт
+        location:
+          type: string
+          example: loc-1
+        period:
+          type: object
+          properties:
+            from:
+              type: string
+              example: "2026-10-01"
+            to:
+              type: string
+              example: "2026-10-31"
+            days:
+              type: integer
+              example: 31
+        avg_daily_consumption:
+          type: number
+          example: 0.5
+        forecast_demand:
+          type: number
+          example: 15.5
+        current_stock:
+          type: number
+          example: 10.0
+        incoming_qty:
+          type: number
+          example: 0.0
+        safety_stock:
+          type: number
+          example: 7.0
+        reorder_point:
+          type: number
+          example: 7.0
+        recommended_purchase_qty:
+          type: number
+          example: 12.5
+        unit_price:
+          type: number
+          example: 1500.00
+        estimated_cost:
+          type: number
+          example: 18750.00
+        recommended_order_date:
+          type: string
+          example: "2026-10-05"
+        stockout_date:
+          type: string
+          example: "2026-10-20"
+        explanation:
+          type: object
+        warnings:
+          type: array
+          items:
+            type: string
+
+    AlertResponse:
+      type: object
+      properties:
+        level:
+          type: string
+          example: critical
+        type:
+          type: string
+          example: stockout_risk
+        sku:
+          type: string
+          example: OIL-001
+        name:
+          type: string
+          example: Масло лавандовое премиум 500мл
+        location:
+          type: string
+          example: loc-1
+        message:
+          type: string
+          example: Товар закончится через 5 дн. Рекомендуется заказать до 2026-10-05
+        metrics:
+          type: object
+
+    Location:
+      type: object
+      properties:
+        id:
+          type: string
+          example: loc-1
+        name:
+          type: string
+          example: Spa Resort Grand
+        address:
+          type: string
+          example: Сочи, Курортный пр-кт, 105
+
+    Supplier:
+      type: object
+      properties:
+        id:
+          type: string
+          example: sup-1
+        name:
+          type: string
+          example: ООО "АромаЛюкс"
+        lead_time_days:
+          type: integer
+          example: 3
+
+    Product:
+      type: object
+      properties:
+        sku:
+          type: string
+          example: OIL-001
+        name:
+          type: string
+          example: Масло лавандовое премиум 500мл
+        category:
+          type: string
+          example: Масла
+        unit:
+          type: string
+          example: шт
+        min_stock:
+          type: number
+          example: 5.0
+        package_size:
+          type: number
+          example: 1.0
+        shelf_life_days:
+          type: integer
+          example: 365
