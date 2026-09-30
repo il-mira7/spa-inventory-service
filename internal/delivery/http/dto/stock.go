@@ -38,4 +38,5 @@ type BatchStockResponse struct {
 	Quantity      decimal.Decimal `json:"quantity"`
 	ExpiryDate    *string         `json:"expiry_date,omitempty"`
 	PurchasePrice decimal.Decimal `json:"purchase_price"`
+	InvoiceNo     string          `json:"invoice_no,omitempty"`
 }

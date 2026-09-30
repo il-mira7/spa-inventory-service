@@ -37,7 +37,16 @@ func Error(w http.ResponseWriter, err error) {
 		return
 	}
 
-	// 2. Ресурс не найден (404 Not Found)
+	// 2. Некорректный запрос / синтаксис JSON (400 Bad Request)
+	if errors.Is(err, domain.ErrBadRequest) {
+		JSON(w, http.StatusBadRequest, dto.ErrorResponse{
+			Error: err.Error(),
+			Code:  http.StatusBadRequest,
+		})
+		return
+	}
+
+	// 3. Ресурс не найден (404 Not Found)
 	if errors.Is(err, domain.ErrNotFound) {
 		JSON(w, http.StatusNotFound, dto.ErrorResponse{
 			Error: err.Error(),

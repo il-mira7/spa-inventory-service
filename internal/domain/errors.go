@@ -9,6 +9,7 @@ import (
 
 // Базовые ошибки предметной области
 var (
+	ErrBadRequest        = errors.New("malformed or invalid request body")
 	ErrNotFound          = errors.New("resource not found")
 	ErrDuplicateDocument = errors.New("document already processed")
 	ErrFutureDate        = errors.New("operation date cannot be in the future")
