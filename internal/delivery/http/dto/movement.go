@@ -18,6 +18,8 @@ type CreateMovementRequest struct {
 	OperationType string   `json:"operation_type"`
 	Quantity      float64  `json:"quantity"`
 	BatchID       string   `json:"batch_id,omitempty"`
+	BatchNo       string   `json:"batch_no,omitempty"`
+	Batch         string   `json:"batch,omitempty"`
 	ExpiryDate    *string  `json:"expiry_date,omitempty"`
 	PurchasePrice *float64 `json:"purchase_price,omitempty"`
 	InvoiceNo     string   `json:"invoice_no,omitempty"`
@@ -37,6 +39,13 @@ func (r *CreateMovementRequest) Validate() error {
 	}
 	if r.LocationID == "" {
 		return fmt.Errorf("location is required: %w", domain.ErrInvalidOperation)
+	}
+	if r.BatchID == "" {
+		if r.BatchNo != "" {
+			r.BatchID = r.BatchNo
+		} else if r.Batch != "" {
+			r.BatchID = r.Batch
+		}
 	}
 	opType := domain.OperationType(r.OperationType)
 	if !opType.IsValid() {

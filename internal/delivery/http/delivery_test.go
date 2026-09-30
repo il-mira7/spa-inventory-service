@@ -511,6 +511,47 @@ func TestMovements_Create_Operations(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
 	})
+
+	t.Run("400 Bad Request на синтаксически невалидный JSON", func(t *testing.T) {
+		resp, err := http.Post(h.server.URL+"/api/movements", "application/json", bytes.NewReader([]byte("{invalid-json")))
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		var errResp dto.ErrorResponse
+		err = json.NewDecoder(resp.Body).Decode(&errResp)
+		require.NoError(t, err)
+		assert.Equal(t, 400, errResp.Code)
+	})
+
+	t.Run("Поддержка алиаса batch_no в CreateMovementRequest", func(t *testing.T) {
+		var capturedBatch string
+		h.movementSvc.processFunc = func(ctx context.Context, cmd service.CreateMovementCommand) (*domain.MovementResult, error) {
+			capturedBatch = cmd.BatchID
+			return &domain.MovementResult{
+				ID:           102,
+				CurrentStock: decimal.NewFromFloat(50),
+			}, nil
+		}
+
+		payload := map[string]any{
+			"document_no":    "DOC-BATCH-ALIAS",
+			"operation_date": now.Format(time.RFC3339),
+			"sku":            "OIL-001",
+			"location_id":    "loc-1",
+			"operation_type": "receipt",
+			"quantity":       10.0,
+			"batch_no":       "BATCH-CUSTOM-99",
+		}
+		data, _ := json.Marshal(payload)
+
+		resp, err := http.Post(h.server.URL+"/api/movements", "application/json", bytes.NewReader(data))
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusCreated, resp.StatusCode)
+		assert.Equal(t, "BATCH-CUSTOM-99", capturedBatch)
+	})
 }
 
 // 7. Тестирование проверки работоспособности GET /health
@@ -635,6 +676,7 @@ func TestStock_Endpoints(t *testing.T) {
 								BatchID:       "B-100",
 								Quantity:      decimal.NewFromFloat(10.0),
 								PurchasePrice: decimal.NewFromFloat(1500.0),
+								InvoiceNo:     "INV-100",
 							},
 						},
 					},
@@ -653,6 +695,7 @@ func TestStock_Endpoints(t *testing.T) {
 		assert.Equal(t, "OIL-001", detail.SKU)
 		require.Len(t, detail.Locations, 1)
 		assert.Equal(t, "B-100", detail.Locations[0].Batches[0].Batch)
+		assert.Equal(t, "INV-100", detail.Locations[0].Batches[0].InvoiceNo)
 	})
 
 	t.Run("GET /api/stock/{sku} 404 на неизвестный артикул", func(t *testing.T) {

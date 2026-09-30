@@ -90,6 +90,7 @@ func (h *StockHandler) Detail(w http.ResponseWriter, r *http.Request) {
 				Quantity:      b.Quantity,
 				ExpiryDate:    expStr,
 				PurchasePrice: price,
+				InvoiceNo:     b.InvoiceNo,
 			})
 		}
 

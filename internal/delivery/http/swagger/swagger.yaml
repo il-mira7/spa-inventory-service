@@ -52,6 +52,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MovementResponse'
+        '400':
+          description: Некорректный синтаксис JSON запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Документ с таким номером уже обработан (идемпотентность)
           content:
@@ -183,6 +189,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ForecastResponse'
+        '400':
+          description: Некорректный синтаксис JSON запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Товар или локация не найдены
           content:
@@ -330,6 +342,15 @@ components:
           example: 2.5
         batch_id:
           type: string
+          description: Идентификатор / номер партии
+          example: B-2026-001
+        batch_no:
+          type: string
+          description: Алиас для batch_id
+          example: B-2026-001
+        batch:
+          type: string
+          description: Алиас для batch_id
           example: B-2026-001
         expiry_date:
           type: string
@@ -464,6 +485,9 @@ components:
         purchase_price:
           type: number
           example: 1450.00
+        invoice_no:
+          type: string
+          example: INV-2026-0510
 
     LocationStockBreakdownResponse:
       type: object

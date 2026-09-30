@@ -45,7 +45,8 @@ test-coverage: ## Запустить тесты с генерацией отче
 	@mkdir -p $(BIN_DIR)
 	$(GO) test -count=1 -coverprofile=$(BIN_DIR)/coverage.out ./...
 	$(GO) tool cover -func=$(BIN_DIR)/coverage.out
-	@echo "HTML отчет: $(GO) tool cover -html=$(BIN_DIR)/coverage.out -o $(BIN_DIR)/coverage.html"
+	$(GO) tool cover -html=$(BIN_DIR)/coverage.out -o $(BIN_DIR)/coverage.html
+	@echo "==> HTML отчет успешно сгенерирован: $(BIN_DIR)/coverage.html"
 
 test-e2e: ## Запустить сквозные E2E тесты против запущенного окружения
 	@echo "==> Запуск сквозных E2E тестов..."

@@ -27,7 +27,7 @@ func NewMovementHandler(movementService service.MovementService) *MovementHandle
 func (h *MovementHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateMovementRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		Error(w, domain.ErrInvalidOperation)
+		Error(w, domain.ErrBadRequest)
 		return
 	}
 

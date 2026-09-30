@@ -24,7 +24,7 @@ func NewForecastHandler(forecastService service.ForecastService) *ForecastHandle
 func (h *ForecastHandler) Calculate(w http.ResponseWriter, r *http.Request) {
 	var req dto.ForecastRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		Error(w, domain.ErrInvalidOperation)
+		Error(w, domain.ErrBadRequest)
 		return
 	}
 
