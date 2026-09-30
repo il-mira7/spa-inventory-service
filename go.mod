@@ -6,6 +6,7 @@ require (
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/joho/godotenv v1.5.1
 	github.com/pressly/goose/v3 v3.28.0
+	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.12.1
 	go.uber.org/fx v1.24.0
 )
